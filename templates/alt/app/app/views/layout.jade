@@ -1,0 +1,26 @@
+!!! 5
+html(lang="en")
+  head
+    title= project
+    link(rel='stylesheet', href='/stylesheets/style.css')
+    link(rel='stylesheet', href='/stylesheets/reset.css')
+      
+    /if lt IE 9
+        script(src="js/ie9.js", type="text/javascript")
+        script(src="http://html5shiv.googlecode.com/svn/trunk/html5.js", type="text/javascript")
+    
+    script(src='/lib/application.js', type="text/javascript")
+    
+    script(type="text/javascript", charset="utf-8").
+        var exports = this;
+        jQuery(function(){
+          var App = require("App");
+          
+          exports.App = App.init({el: $("body")});      
+        });
+  body
+    header!= partial('header');
+    section#container
+        section#sidebar!= partial('sidebar');
+        section#content!=body
+    footer!= partial('footer');

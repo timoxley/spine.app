@@ -1,0 +1,14 @@
+{
+  "name": "changeme",
+  "version": "0.0.1",
+  "engines": {
+    "node": "*"
+  },
+  "dependencies" : { 
+    "coffee-script" : "~1.1.1",
+    "stitch" : "~0.3.1",
+    "express": "~2.3.4",
+    "stylus": "~0.13.3",
+    "jade": "~0.12.1"
+  }
+}

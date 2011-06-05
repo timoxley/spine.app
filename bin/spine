@@ -5,7 +5,18 @@ var argv = process.argv.slice(2),
     fd   = require("path")
     
 var isDir = function(path){
-  return(fs.statSync(path).isDirectory());
+  try{
+    return (fs.statSync(path).isDirectory());
+  } catch (err) {
+    return false;
+  }
+};
+var isFile = function(path){
+  try{
+    return (fs.statSync(path).isFile());
+  } catch (err) {
+    return false;
+  }
 };
 
 var expandPath = function(path, dir){
@@ -36,6 +47,7 @@ Template.prototype.__defineGetter__("files", function(){
         files = [];
 
     (function next(dir) {
+      console.log(dir);
       fs.readdirSync(dir).forEach(function(file){
         files.push(file = dir + '/' + file);
         if (isDir(file)) next(file);
@@ -49,16 +61,16 @@ Template.prototype.write = function(){
     var out = path.replace(this.template, "");
     out = fd.join(this.path, out);
     out = fd.normalize(out);
-    
     if ( isDir(path) ) {
       fs.mkdirSync(out, 0775);
     } else if (fd.existsSync(out)) {
-      throw(path + " already exists");
+      error(path + " already exists")
     } else {
       var data = this.parse(fs.readFileSync(path, "utf8"));
       fs.writeFileSync(out, data);
     }
   }, this);
+  util.puts("Created spine application in " + this.path);
 };
 
 Template.prototype.parse = function(data){
@@ -68,55 +80,105 @@ Template.prototype.parse = function(data){
   });
 };
 
+var findDirs = function(root) { 
+  var dirs = [];
+
+  fs.readdirSync(root).forEach(function(name){
+    if (isDir(root + '/' + name)) {
+      dirs.push(name);
+    };
+  });
+
+  return dirs;
+}
+
 var help = [
-    "usage: spine [options] ",
+    "usage: spine [options] [template]",
     "",
     "Generates a spine app using the specified command-line options",
     "",
     "options:",
-    " app path          Generates a new Spine application",
+    " app path          Generates a new Spine application, non-default template optional",
     " controller name   Generates a Spine Controller",
     " model name        Generates a Spine Model",
+    "template (optional): ",
+    " " + findDirs(__dirname + '/../templates/').join("\n ")
 ].join('\n');
 
 var generators = {};
 
+
+var templates = [];
+var getTemplatePath = function(templateName) {
+
+  var template  = templateName || 'default';
+  var templates = findDirs(__dirname + '/../templates/');
+
+  if (templates.indexOf(template) == -1) {
+    util.error("Error: template '" + template + "' doesn't exist");	
+    process.exit(1);
+  }
+  return __dirname + "/../templates/" + template;
+}
+
+function error(msg, errorCode) {
+    util.error('ERROR: ' + msg);
+    process.exit(errorCode || 1);
+}
+
 generators.app = function(){
-  var template = __dirname + "/../templates/app";
-  var path     = fd.normalize(argv[1]);
+  var templatePath = getTemplatePath(argv[2]) + "/app";
+
+  if (!isDir(templatePath)) {
+    error(argv[2] + " template doesn't have an app template");
+  };
+
+  var path = fd.normalize(argv[1]);
   
   // Create parent dir
-  if (fd.existsSync(path)) throw(path + " already exists");
+  if (fd.existsSync(path)) {
+  	error(path + " already exists");
+  }
+
   fs.mkdirSync(path, 0775);
   
-  (new Template(template, path)).write();
+  (new Template(templatePath, path)).write();
 };
 
+generators.templates = function() {	
+  util.puts(findDirs(__dirname + '/../templates/').join(', '));
+}
+
 generators.controller = function(){
-  var template = __dirname + "/../templates/controller.coffee";
+  var templatePath = getTemplatePath(argv[2]);
+  if (!isFile(templatePath + '/controller.coffee')) {
+    error(argv[2] + " template doesn't have a controller template");
+  };
+
   var values   = {name: camelize(fd.basename(argv[1]))};
-  
   var path     = expandPath(argv[1], "./app/controllers/");
   if ( !fd.extname(path) ) path += ".coffee";
-
-  // Make views/css
-  // fs.mkdirSync(expandPath(argv[1], "./app/views/views"), 0775)
-  // fs.mkdirSync(expandPath(argv[1], "./app/views/views"), 0775)
   
-  (new Template(template, path, values)).write();
+  (new Template(templatePath, path, values)).write();
 };
 
 generators.model = function(){
-  var template = __dirname + "/../templates/model.coffee";
+  var templatePath = getTemplatePath(argv[2]);
+
+  if (!isFile(templatePath + "/model.coffee")) {
+    error(argv[2] + " template doesn't have a model template");
+  };
+
   var values   = {name: camelize(fd.basename(argv[1]))};
-  
   var path     = expandPath(argv[1], "./app/models/");
+
   if ( !fd.extname(path) ) path += ".coffee";
   
-  (new Template(template, path, values)).write();
+  (new Template(templatePath, path, values)).write();
 };
 
 if (generators[argv[0]])
   generators[argv[0]]();
 else
   util.puts(help);
+
